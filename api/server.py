@@ -5,14 +5,29 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-# CORS setup
+origins = ["http://localhost:11434"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust for production
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
+
+class RateLimiter:
+    def __init__(self):
+        self.requests = 0
+
+    async def __call__(self, request: Request):
+        if request.method == "POST":
+            if self.requests < 10:
+                self.requests += 1
+                return await next(self)
+            else:
+                return JSONResponse({"error": "Rate limit exceeded"}, status_code=429)
+
+app.middleware("http", RateLimiter())
 
 
 # Sample route
